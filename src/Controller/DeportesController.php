@@ -1,15 +1,22 @@
 <?php
+/**
+ * Created by PhpStorm.
+ * User: imagina
+ * Date: 13/02/18
+ * Time: 11:48
+ */
 
 namespace App\Controller;
 
+use App\Repository\NoticiaRepository;
 use App\Entity\Noticia;
+use App\Form\Login;
 use Sensio\Bundle\FrameworkExtraBundle\Configuration\Route;
-use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 use Symfony\Component\HttpFoundation\Session\Session;
-
+use Symfony\Component\Security\Http\Authentication\AuthenticationUtils;
 
 class DeportesController extends Controller
 
@@ -17,38 +24,53 @@ class DeportesController extends Controller
     /**
      * @Route("/deportes", name="inicio" )
      */
-    public function inicio()
+    public function inicio($texto="Mi página de deportes!!")
     {
-        return $this->render("base.html.twig");
+        return $this->render("base.html.twig",[
+            'texto'=>$texto
+        ]);
     }
 
-  /**
-  * @Route("/deportes/primer-articulo")
-  */
-  public function mostrar() {
-     return new Response('Mi primera ruta Primer Artículo!');
-  }
-/**
-* @Route("/deportes/cargarbd")
-*/
-public function cargarBd() {
-   $em=$this->getDoctrine()->getManager();
 
-   $noticia=new Noticia();
-   $noticia->setSeccion("Tenis");
-   $noticia->setEquipo("roger-federer");
-   $noticia->setFecha("16022018");
-   $noticia->setTextoTitular("Roger-Federer-a-una-victoria-del-número-uno-de-Nadal");
-   $noticia->setTextoNoticia("El suizo Roger Federer, el tenista más laureado de la historia, está a son un paso de regresar a la cima del tenis mundial a sus 36 años. Clasificado sin admitir ni réplica para cuartos de final del torneo de Rotterdam, si vence este viernes a Robin Haase se convertirá en el número uno del mundo ...");
-   //$noticia->setImagen('federer.jpg');
 
-   $em->persist($noticia);
-   $em->flush();
-   return new Response("Noticia guardada con éxito con id:".$noticia->getId());
-}
+   /**
+    * @Route("/user", name="user")
+    */
+   public function index()
+   {
+       return $this->render('security/index.html.twig', [
+           'controller_name' => 'UserController',
+       ]);
+   }
+
+
+
+
 
     /**
-     * @Route("/deportes/actualizar")
+     * @Route("/deportes/cargarbd", name="noticia")
+     */
+    public function cargarBd()
+    {
+        $em=$this->getDoctrine()->getManager();
+
+        $noticia=new Noticia();
+        $noticia->setSeccion("Tenis");
+        $noticia->setEquipo("roger-federer");
+        $noticia->setFecha("16022018");
+        $noticia->setTextoTitular("Roger-Federer-a-una-victoria-del-número-uno-de-Nadal");
+        $noticia->setTextoNoticia("El suizo Roger Federer, el tenista más laureado de la historia, está a son un paso de regresar a la cima del tenis mundial a sus 36 años. Clasificado sin admitir ni réplica para cuartos de final del torneo de Rotterdam, si vence este viernes a Robin Haase se convertirá en el número uno del mundo ...");
+        $noticia->setImagen('federer.jpg');
+        $em->persist($noticia);
+
+        $em->flush();
+
+        return new Response("Noticia guardada con éxito con id:".$noticia->getId());
+
+    }
+
+    /**
+     * @Route("/deportes/actualizar", name="actualizarNoticia")
      */
     public function actualizarBd(Request $request)
     {
@@ -56,9 +78,7 @@ public function cargarBd() {
         $id=$request->query->get('id');
         $noticia = $em->getRepository(Noticia::class)->find($id);
 
-        $noticia->setTextoTitular("Titular de ejemplo actualizado para la noticia con id:".$noticia->getId());
-        $noticia->setTextoNoticia("Texto de ejemplo actualizado para la noticia con id:".$noticia->getId());
-
+        $noticia->setTextoTitular("Rafa-Nadal-numero-uno-del-mundo");
         $em->flush();
 
         return new Response("Noticia actualizada!");
@@ -67,7 +87,7 @@ public function cargarBd() {
 
 
     /**
-     * @Route("/deportes/eliminar", name="actualizarNoticia")
+     * @Route("/deportes/eliminar", name="eliminarNoticia")
      */
     public function eliminarBd(Request $request)
     {
@@ -82,61 +102,135 @@ public function cargarBd() {
 
     }
 
-/**
-* @Route("/deportes/{seccion}/{pagina}", name="lista_paginas",
-*      requirements={"pagina"="\d+"},
-*      defaults={"seccion":"tenis"})
-*/
-public function lista($pagina = 1, $seccion) {
- $em=$this->getDoctrine()->getManager();
- $repository = $this->getDoctrine()->getRepository(Noticia::class);
 
- $noticiaSec= $repository->findOneBy(['seccion' => $seccion]);
- // Si el deporte que buscamos no se encuentra lanzamos la
- // excepcion 404 deporte no encontrado
- if(!$noticiaSec) {
-     throw $this->createNotFoundException('Error 404 este deporte no está en nuestra Base de Datos');
- }
 
- // Almacenamos todas las noticias de una sección en una lista
- $noticias = $repository->findBy([
-     "seccion"=>$seccion
- ]);
 
- return $this->render('noticias/listar.html.twig', [
-     // La función str_replace elimina los símbolos - de los títulos
-     'titulo' => ucwords(str_replace('-', ' ', $seccion)),
-     'noticias'=>$noticias
- ]);
-}
+    /**
+     * @Route("/deportes/{seccion}/{pagina}", name="lista_paginas",
+     *      requirements={"pagina"="\d+"},
+     *      defaults={"seccion":"tenis"})
+     */
+    public function lista($pagina = 1, $seccion)
+    {
 
-/**
-* @Route("/deportes/{seccion}/{titular} ",
-* defaults={"seccion":"tenis"}, name="verNoticia")
-*/
-public function noticia($titular, $seccion)
-{
- $em=$this->getDoctrine()->getManager();
- $repository = $this->getDoctrine()->getRepository(Noticia::class);
- $noticia= $repository->findOneBy(['textoTitular' => $titular]);
- // Si la noticia que buscamos no se encuentra lanzamos error 404
- if(!$noticia){
-         // Ahora que controlamos el manejo de plantilla twig, vamos a
-         // redirigir al usuario a la página de inicio
-         // y mostraremos el error 404, para así no mostrar la página de
-         // errores generica de symfony
-         throw $this->createNotFoundException('Error 404 este deporte no está en nuestra Base de Datos');
-   return $this->render("base.html.twig",[
-             'texto'=>"Error 404 Página no encontrada"
-   ]);
- }
-   return $this->render('noticias/noticia.html.twig', [
-         // Parseamos el titular para quitar los símbolos -
-         'titulo' => ucwords(str_replace('-', ' ', $titular)),
-         'noticias'=>$noticia
+        $em=$this->getDoctrine()->getManager();
+        $repository = $this->getDoctrine()->getRepository(Noticia::class);
 
-     ]);
-}
+        $noticiaSec= $repository->findOneBy(['seccion' => $seccion]);
+        //Si el deporte que buscamos no se encuentra lanzamos la
+        //excepcion 404 deporte no encontrado
+        if(!$noticiaSec){
+            //Ahora que controlamos el manejo de plantilla twig, vamos a redirigir al usuario a la pagina de inicio
+            //y mostraremos el error 404, para así no mostrar la página de errores generica de symfony
+            //throw $this->createNotFoundException('Error 404 este deporte no esta en nuestra Base de Datos');
+            return $this->render("base.html.twig",[
+                'texto'=>"Error 404 Página no encontrada"
+            ]);
+        }
+
+        //almacenamos todas las noticias de una seccion en una lista
+        $noticias = $repository->findBy([
+            "seccion"=>$seccion
+        ]);
+
+        return $this->render('noticias/listar.html.twig', [
+            'titulo' => ucwords(str_replace('-', ' ', $seccion)),
+            'noticias'=>$noticias
+        ]);
+    }
+
+
+
+    /**
+     * @Route("/deportes/{seccion}/{titular} ",
+     * defaults={"seccion":"tenis"}, name="verNoticia")
+     */
+    public function noticia($titular, $seccion)
+    {
+
+        $em=$this->getDoctrine()->getManager();
+        $repository = $this->getDoctrine()->getRepository(Noticia::class);
+
+        $noticia= $repository->findOneBy(['textoTitular' => $titular]);
+        //Si la noticia que buscamos no se encuentra lanzamos error 404
+        if(!$noticia){
+            //Ahora que controlamos el manejo de plantilla twig, vamos a redirigir al usuario a la pagina de inicio
+            //y mostraremos el error 404, para así no mostrar la página de errores generica de symfony
+            //throw $this->createNotFoundException('Error 404 este deporte no esta en nuestra Base de Datos');
+            return $this->render("base.html.twig",[
+                'texto'=>"Error 404 Página no encontrada"
+            ]);
+
+        }
+
+        return $this->render('noticias/noticia.html.twig', [
+            //parseamos el titular para quitar los simbolos -
+            'titulo' => ucwords(str_replace('-', ' ', $titular)),
+            'noticias'=>$noticia
+
+        ]);
+    }
+
+
+
+    /**
+     * @Route(
+     *     "/deportes/{_idioma}/{fecha}/{seccion}/{equipo}/{pagina}",
+     *     defaults={"_formato":"html","pagina":"1","_idioma"="es"},
+     *     requirements={
+     *         "_idioma": "es|en",
+     *         "_formato": "html|json|xml",
+     *         "fecha": "[\d+]{8}",
+     *         "pagina"="\d+"
+     *     }
+     * )
+     */
+    public function rutaAvanzadaListado($_idioma,$fecha, $seccion, $equipo, $pagina)
+    {
+
+        //Realizamos una consulta un poco más avanzada. La función para
+        //realizar esta consulta está en /serc/Repository/NoticiasRepository.php
+        //Esta página se genera automaticamente para dar soporte a estas consultas
+        $em=$this->getDoctrine()->getManager();
+        $repository = $this->getDoctrine()->getRepository(Noticia::class);
+
+        $noticias= $repository->listadoNoticias($seccion,$fecha,$equipo);
+        return $this->render('noticias/listar.html.twig', [
+            'titulo' => ucwords(str_replace('-', ' ', $seccion)),
+            'noticias'=>$noticias
+        ]);
+    }
+
+
+
+    /**
+     * @Route(
+     *     "/deportes/{_idioma}/{fecha}/{seccion}/{equipo}/{titular}.{_formato}",
+     *     defaults={"titular": "1","_formato":"html"},
+     *     requirements={
+     *         "_idioma": "es|en",
+     *         "_formato": "html|json|xml",
+     *          "fecha": "[\d+]{8}"
+     *     }
+     * )
+     */
+    public function rutaAvanzada($_idioma,$fecha, $seccion, $equipo, $titular)
+    {
+        //Realizamos una consulta un poco más avanzada. La función para
+        //realizar esta consulta está en /serc/Repository/NoticiasRepository.php
+        //Esta página se genera automaticamente para dar soporte a estas consultas
+        $em=$this->getDoctrine()->getManager();
+        $repository = $this->getDoctrine()->getRepository(Noticia::class);
+
+        $noticia= $repository->verNoticia($seccion,$fecha,$equipo,$titular);
+        return $this->render('noticias/noticia.html.twig', [
+            //parseamos el titular para quitar los simbolos -
+            'titulo' => ucwords(str_replace('-', ' ', $titular)),
+            'noticias'=>$noticia[0]
+        ]);
+    }
+
+
 
 }
 
