@@ -10,50 +10,37 @@ namespace App\Controller;
 
 use App\Repository\NoticiaRepository;
 use App\Entity\Noticia;
+use App\Entity\Usuario;
 use App\Form\Login;
 use Sensio\Bundle\FrameworkExtraBundle\Configuration\Route;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 use Symfony\Component\HttpFoundation\Session\Session;
+use Symfony\Component\Translation\Translator;
+use Symfony\Component\Translation\Loader\ArrayLoader;
 use Symfony\Component\Security\Http\Authentication\AuthenticationUtils;
 
 class DeportesController extends Controller
 
 {
+
     /**
      * @Route("/deportes", name="inicio" )
      */
-    public function inicio($texto="Mi página de deportes!!")
+    public function inicio($texto="Mi página de deportes!!",$usuario="")
     {
         return $this->render("base.html.twig",[
-            'texto'=>$texto
+            'texto'=>$texto,
+            'usuario'=>$usuario
         ]);
     }
-
-
-
-   /**
-    * @Route("/user", name="user")
-    */
-   public function index()
-   {
-       return $this->render('security/index.html.twig', [
-           'controller_name' => 'UserController',
-       ]);
-   }
-
-
-
-
-
     /**
      * @Route("/deportes/cargarbd", name="noticia")
      */
     public function cargarBd()
     {
         $em=$this->getDoctrine()->getManager();
-
         $noticia=new Noticia();
         $noticia->setSeccion("Tenis");
         $noticia->setEquipo("roger-federer");
@@ -62,9 +49,7 @@ class DeportesController extends Controller
         $noticia->setTextoNoticia("El suizo Roger Federer, el tenista más laureado de la historia, está a son un paso de regresar a la cima del tenis mundial a sus 36 años. Clasificado sin admitir ni réplica para cuartos de final del torneo de Rotterdam, si vence este viernes a Robin Haase se convertirá en el número uno del mundo ...");
         $noticia->setImagen('federer.jpg');
         $em->persist($noticia);
-
         $em->flush();
-
         return new Response("Noticia guardada con éxito con id:".$noticia->getId());
 
     }
@@ -102,6 +87,87 @@ class DeportesController extends Controller
 
     }
 
+
+    /**
+     * @Route("/deportes/usuario", name="usuario" )
+     */
+    public function sesionUsuario(Request $request)
+    {
+           $usuario_get=$request->query->get('nombre');
+            $session = $request->getSession();
+            $session->set('nombre', $usuario_get);
+
+            return $this->redirectToRoute('usuario_session',array('nombre'=>$usuario_get));
+
+    }
+
+
+    /**
+     * @Route("/deportes/usuario/{nombre}", name="usuario_session" )
+     */
+    public function paginaUsuario()
+    {
+        $session=new Session();
+        $usuario=$session->get('nombre');
+        return new Response(sprintf('Sesion iniciada con el atributo nombre: %s'
+            , $usuario
+        ));
+    }
+
+
+
+    /**
+     * @Route("/deportes/login", name="login_seguro" )
+     */
+    public function loginUsuario(Request $request)
+    {
+        $authenticationUtils = $this->get('security.authentication_utils');
+
+        // capturar error de autenticacion
+        $error = $authenticationUtils->getLastAuthenticationError();
+
+        // ultimo nobre de usuario autenticado
+        $lastUsername = $authenticationUtils->getLastUsername();
+
+        return $this->render('usuario/login.html.twig', array(
+            'last_username' => $lastUsername,
+            'error'         => $error,
+        ));
+    }
+
+
+    /**
+     * @Route("/deportes/nuevousuario", name="usuariobd")
+     */
+    public function nuevoUsuarioBd()
+    {
+        $em=$this->getDoctrine()->getManager();
+
+        $usuario=new Usuario();
+        $usuario->setEmail("jose@imaginaformacion.com");
+        $usuario->setUsername("jose");
+        $password = $this->get('security.password_encoder')
+            ->encodePassword($usuario, "imaginapass");
+        $usuario->setPassword($password);
+
+        $em->persist($usuario);
+
+        $em->flush();
+
+        return new Response("Usuario guradado!");
+
+    }
+
+
+    /**
+     * @Route("/deportes/login_check", name="login_check")
+     */
+    public function loginCheck()
+    {
+        return $this->render("base.html.twig",[
+        'texto'=>'a'
+    ]);
+    }
 
 
 
@@ -233,7 +299,3 @@ class DeportesController extends Controller
 
 
 }
-
-
-
-
